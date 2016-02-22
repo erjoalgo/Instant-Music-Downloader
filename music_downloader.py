@@ -3,6 +3,7 @@
 from __future__ import print_function
 import os
 import re
+import subprocess
 
 from bs4 import BeautifulSoup
 
@@ -69,9 +70,9 @@ def query_and_download(search, has_prompts=True, is_quiet=False):
             choice = raw_input('Pick one: ')
         title, video_link = available[int(choice)]
 
-        prompt = raw_input('Download "%s"? (y/n) ' % title)
-        if prompt != 'y':
-            sys.exit()
+        # prompt = raw_input('Download "%s"? (y/n) ' % title)
+        # if prompt != 'y':
+            # sys.exit()
     # Otherwise, just download the first in available list
     else:
         title, video_link = available[0]
@@ -80,8 +81,8 @@ def query_and_download(search, has_prompts=True, is_quiet=False):
     command_tokens = [
         'youtube-dl',
         '--extract-audio',
-        '--audio-format mp3',
-        '--audio-quality 0',
+        '--audio-format',  'mp3',
+        '--audio-quality',  '0',
         'http://www.youtube.com/' + video_link]
 
     if is_quiet:
@@ -93,8 +94,18 @@ def query_and_download(search, has_prompts=True, is_quiet=False):
     # Youtube-dl is a proof that god exists.
     if not is_quiet:
         print('Downloading')
-    os.system(command)
-
+        
+    # output = os.system(command)
+    output = subprocess.check_output(command_tokens)
+    print ( "output was {}".format(output) )
+    
+    # m = re.search("Decoding of (.*) finished", output)
+    m = re.search("Destination: (.*[.]mp3)", output)
+    if m:
+        fn = m.group(1)
+        fnDest = os.path.join("/home/ealfonso/Music/ytdl", os.path.basename(fn))
+        subprocess.call(["mv", fn, fnDest])
+        subprocess.Popen(["mpg321", fnDest])
     return title
 
 def search_uses_flags(argstring, *flags):
@@ -136,6 +147,19 @@ def main():
             downloaded = query_and_download(search, not search_uses_flags('-p'), search_uses_flags('-q'))
 
         # Some input flags are specified
+        elif not search_uses_flags(argument_string, "-L"):
+            #just list titles and urls
+            query = argument_string.replace('-L', '')
+            results = search_videos(qp(" ".join(query)))
+            #todo include image thumb
+            lines = [u"\t".join(map(lambda x: x.decode("utf8"), line)) for line in results]
+            # print ( "hola: {} ".format(len(lines) ))
+            # print ( map(type, lines) )
+            
+            # print ( "\n".join(lines))
+            print ( "\n".join((x.encode("utf8") for x in lines)))
+            # print ( "hola" )
+            
         else:
             # Lots of parser-building fun!
             import argparse
@@ -174,6 +198,8 @@ def main():
                 downloads.append(query_and_download(song, prompt, quiet))
 
             print('Downloaded: %s' % ', '.join(downloads))
+
+            
 
 if __name__ == '__main__':
     main()
